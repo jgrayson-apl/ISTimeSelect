@@ -1,0 +1,37 @@
+
+.ISTimeSelectSetting {
+  overflow : hidden;
+}
+
+.ISTimeSelectSetting-section {
+  margin  : 5px !important;
+  padding : 10px !important;
+  border  : solid 1px #eee !important;
+}
+
+.ISTimeSelectSetting-label {
+  display    : inline-block;
+  width      : 200px !important;
+  text-align : right;
+}
+
+.ISTimeSelectSetting-title,
+.ISTimeSelectSetting-item-title {
+  width : 350px;
+}
+
+.item-selector-node {
+  height : 400px !important;
+}
+
+
+.ISTimeSelectSetting-dlg .dijitButtonText,
+.ISTimeSelectSetting-dlg .dijitDialogTitle {
+  color : #fff !important;
+}
+
+.ISTimeSelectSetting-dlg .dijitButtonNode,
+.ISTimeSelectSetting-dlg .dijitDialogTitleBar {
+  background : #6eb5e3 !important;
+  border     : none !important;
+}
