@@ -104,7 +104,7 @@ define([
         var ISLayer = new ArcGISImageServiceLayer(this.itemInfo.url);
         ISLayer.on("load", lang.hitch(this, function () {
           // ZOOM LEVEL //
-          this.zoomLevelInput.set("value", this.ISLayer.minScale || 8);
+          this.zoomLevelInput.set("value", ISLayer.minScale || 8);
 
           // DATE FIELD //
           var dateFieldStore = new Memory({
