@@ -88,7 +88,8 @@ define([
 
     /**
      * VALIDATE CONFIG
-     *  - WE NEED A TITLE, DETAILS ABOUT THE ITEM, A DATE FIELD, AND A MOSAIC METHOD.
+     *  - WE NEED A TITLE, DETAILS ABOUT THE ITEM, A DATE FIELD.
+     *  - A MOSAIC METHOD AND A MINIMUM ZOOM LEVEL ARE SET HERE IF NOT SET IN CONFIG.
      */
     _validateConfig: function () {
       // TITLE //
@@ -265,6 +266,42 @@ define([
         var selectedItem = imageryDatesStore.get(selectedDateText);
         if(selectedItem) {
 
+          //       - http://resources.arcgis.com/en/help/arcgis-rest-api/index.html#/Mosaic_rule_objects/02r3000000s4000000/
+          //
+          //         ByAttribute: Orders rasters based on the absolute distance between their values of an attribute and a base value. Only numeric or date fields are applicable. Mosaic results are view-independent.
+          //
+          //            {
+          //              "mosaicMethod" : "esriMosaicAttribute", //required
+          //              "sortField" : "<sortFieldName>",//required, numeric or date fields only.
+          //              "sortValue" : <sortValue>,//optional, default is null or 0. Use numeric values for numeric fields and use the following string format for date field:
+          //                            yyyy/MM/dd HH:mm:ss.s
+          //                            yyyy/MM/dd HH:mm:ss
+          //                            yyyy/MM/dd HH:mm
+          //                            yyyy/MM/dd HH
+          //                            yyyy/MM/dd
+          //                            yyyy/MM
+          //                            yyyy
+          //
+          //                "ascending" : <true | false>,//optional, default is true
+          //                "where" : "<where>", //optional
+          //                "fids" : [<fid1>, <fid2>],//optional
+          //                "mosaicOperation" : "<MT_FIRST | MT_BLEND | MT_SUM>" //default is MT_FIRST
+          //              }
+          //
+          //          LockRaster: Displays only the selected rasters. Mosaic results are view-independent.
+          //
+          //            {
+          //              "mosaicMethod" : "esriMosaicLockRaster", //required
+          //              "lockRasterIds" : [<rasterId1>, <rasterId2>],  //required
+          //              "where" : "<where>", //optional
+          //              "ascending" : <true | false>,//optional, default is true
+          //              "fids" : [<fid1>, <fid2>],//optional
+          //              "mosaicOperation" : "<MT_FIRST | MT_LAST | MT_MIN | MT_MAX | MT_MEAN | MT_BLEND | MT_SUM>" //default is MT_FIRST
+          //            }
+          //
+          //       - http://desktop.arcgis.com/en/desktop/latest/manage-data/raster-and-images/understanding-the-mosaicking-rules-for-a-mosaic-dataset.htm
+
+
           // NEW MOSAIC RULE //
           var newMosaicRule = new MosaicRule();
           newMosaicRule.ascending = true;
@@ -344,6 +381,7 @@ define([
               var dateObj = new Date(dateValue);
 
               // FORMAT DATE //
+              // TODO: MAKE THESE FORMATS CONFIGURABLE
               var queryDate = locale.format(dateObj, {selector: "date", datePattern: "yyyy/MM/dd"});
               var displayDate = locale.format(dateObj, {selector: "date", datePattern: "EEE dd MMM yyyy"});
 
