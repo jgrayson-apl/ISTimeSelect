@@ -292,6 +292,8 @@ define([
     _onDateChange: function (selectedDateText) {
       var deferred = new Deferred();
 
+      console.info("_onDateChange: ", selectedDateText);
+
       if(this.hasValidConfig) {
         // GET SELECTED ITEM //
         var imageryDatesStore = this.imageryDateSelect.get("store");
@@ -455,12 +457,12 @@ define([
           // SET CURRENT TO PREVIOUS IF PREVIOUS DATE STILL EXISTS IN NEW LIST OF DATES //
           if(currentValue && (imageryDatesStore.get(currentValue) != null)) {
             this.imageryDateSelect.set("value", currentValue);
-            // SETTING DATE TO PREVIOUS DATE DOES NOT TRIGGER DIJIT CHANGE EVENT //
             this._onDateChange(currentValue);
-
           } else {
             if(hasImagery) {
-              this.imageryDateSelect.set("value", imageryDatesStore.data[0].id);
+              var newCurrentValue = imageryDatesStore.data[0].id;
+              this.imageryDateSelect.set("value", newCurrentValue);
+              this._onDateChange(newCurrentValue);
             } else {
               this.updateDateControls();
             }
