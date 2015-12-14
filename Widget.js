@@ -110,19 +110,12 @@ define([
         // IMAGE SERVICE LAYER LOADED //
         this.ISLayer.on("load", lang.hitch(this, function () {
           // DEFAULT MOSAIC RULE //
-          this.defaultMosaicRule = this.ISLayer.defaultMosaicRule;
-          if(this.defaultMosaicRule == null) {
-            this.defaultMosaicRule = new MosaicRule();
-            this.defaultMosaicRule.method = MosaicRule.METHOD_NONE;
-            this.defaultMosaicRule.operation = MosaicRule.OPERATION_FIRST;
-            this.defaultMosaicRule.ascending = true;
-          }
+          this.defaultMosaicRule = this.ISLayer.defaultMosaicRule || lang.clone(this.ISLayer.mosaicRule);
           // SET MAP WAIT CURSOR WHILE UPDATING LAYER //
           this.ISLayer.on("update-start", lang.hitch(this.map, this.map.setMapCursor, "wait"));
           this.ISLayer.on("update-end", lang.hitch(this.map, this.map.setMapCursor, "default"));
           // ADD IMAGE SERVICE LAYER //
           this.map.addLayer(this.ISLayer);
-
           // MAP EXTENT CHANGE //
           this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
         }));
