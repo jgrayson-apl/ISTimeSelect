@@ -74,6 +74,8 @@ define([
         on(this.itemSelector, "item-selected, none-item-selected", lang.hitch(this, function (selectedItem) {
           this.selectedItem = selectedItem;
           selectItemDlg.okButton.set("disabled", (this.selectedItem == null));
+          this.imageServiceItemTitleInput.set("value", (this.selectedItem != null) ? this.selectedItem.title : "");
+          this.dateFieldsSelect._setDisplay("");
         }));
         this.itemSelector.startup();
 
@@ -92,6 +94,8 @@ define([
         id: itemInfo.id,
         title: itemInfo.title,
         url: itemInfo.url,
+        thumbnailUrl: itemInfo.thumbnailUrl,
+        description: itemInfo.description,
         detailsPageUrl: itemInfo.detailsPageUrl
       } : null;
 
@@ -113,9 +117,15 @@ define([
               return (field.type === "esriFieldTypeDate");
             })
           });
-          this.dateFieldsSelect.set("store", dateFieldStore);
-          if(this.config.dateField) {
-            this.dateFieldsSelect.set("value", this.config.dateField);
+          if(dateFieldStore.data.length > 0) {
+            this.dateFieldsSelect.set("store", dateFieldStore);
+            if(this.config.dateField) {
+              this.dateFieldsSelect.set("value", this.config.dateField);
+            }
+          } else {
+            this.config.dateField = null;
+            this.dateFieldsSelect.set("value", null);
+            this.dateFieldsSelect._setDisplay(this.nls.noDateFields);
           }
           ISLayer.destroy();
           ISLayer = null;

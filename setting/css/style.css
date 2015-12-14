@@ -24,7 +24,6 @@
   height : 400px !important;
 }
 
-
 .ISTimeSelectSetting-dlg .dijitButtonText,
 .ISTimeSelectSetting-dlg .dijitDialogTitle {
   color : #fff !important;
@@ -34,4 +33,9 @@
 .ISTimeSelectSetting-dlg .dijitDialogTitleBar {
   background : #6eb5e3 !important;
   border     : none !important;
+}
+
+
+.ISTimeSelectSetting-dlg .dijitButtonDisabled .dijitButtonNode {
+  background : #d3d3d3 !important;
 }

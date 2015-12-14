@@ -183,6 +183,7 @@ define([
     },
 
     /**
+     * SET DISPLAY MESSAGE
      *
      * @param message
      */
@@ -197,7 +198,6 @@ define([
      * @private
      */
     _mapExtentChange: function (evt) {
-      //console.info("_mapExtentChange: ", evt.lod.level, evt.levelChange);
 
       // VALID ZOOM LEVEL //
       var validZoomLevel = (evt.lod.level >= this.minZoomLevel);
@@ -471,6 +471,7 @@ define([
 
     /**
      * USER CLICKS ABOUT BUTTON
+     *  TODO: DO WE NEED A SEPARATE WIDGET FOR THIS?
      *
      * @private
      */
@@ -478,22 +479,28 @@ define([
 
       // ABOUT DIALOG CONTENT //
       var aboutContentNode = put("div.about-content");
-      put(aboutContentNode, "div", {innerHTML: this.nls.aboutContent});
+      put(aboutContentNode, "div span", {innerHTML: lang.replace("{nls.aboutContent}. {nls.versionLabel}: {version}", this)});
+      var currentNode = put(aboutContentNode, "hr +div");
+      put(currentNode, "span", {innerHTML: lang.replace("{nls.currentItemLabel}: ", this)});
+
+      // ITEM DETAILS //
       if(this.config.itemInfo) {
-        put(aboutContentNode, "div a", {
+        put(currentNode, "a", {
           innerHTML: this.config.itemInfo.title,
           href: this.config.itemInfo.detailsPageUrl,
           target: "_blank"
         });
+        var itemNode = put(currentNode, "div div.item-node");
+        put(itemNode, "img.item-thumb", {src: this.config.itemInfo.thumbnailUrl});
+        put(itemNode, "div.item-desc", {innerHTML: this.config.itemInfo.description});
       }
-      put(aboutContentNode, "div div", lang.replace("Version: {version}", this));
 
       // ABOUT DIALOG //
       var aboutDialog = new ConfirmDialog({
         title: this.nls.aboutLabel,
         content: aboutContentNode
       });
-      domClass.add(aboutDialog.domNode, lang.replace("{baseClass}-dlg", this));
+      domClass.add(aboutDialog.domNode, lang.replace("{baseClass}-aboutDlg", this));
       aboutDialog.show();
 
     }

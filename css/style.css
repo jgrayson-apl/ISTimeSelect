@@ -35,17 +35,42 @@
   background : url(../images/info_32.png) no-repeat center / contain;
 }
 
-.ISTimeSelect-dlg .dijitButtonText,
-.ISTimeSelect-dlg .dijitDialogTitle {
+.ISTimeSelect-aboutDlg .dijitButtonText,
+.ISTimeSelect-aboutDlg .dijitDialogTitle {
   color : #fff !important;
 }
 
-.ISTimeSelect-dlg .dijitButtonNode,
-.ISTimeSelect-dlg .dijitDialogTitleBar {
+.ISTimeSelect-aboutDlg .dijitButtonNode,
+.ISTimeSelect-aboutDlg .dijitDialogTitleBar {
   background : #6eb5e3 !important;
   border     : none !important;
 }
 
-.ISTimeSelect-dlg .about-content {
-  height : 200px;
+.ISTimeSelect-aboutDlg .dijitButtonDisabled .dijitButtonNode {
+  background : #d3d3d3 !important;
 }
+
+.ISTimeSelect-aboutDlg .about-content {
+  min-height : 200px;
+  overflow   : auto;
+}
+
+.ISTimeSelect-aboutDlg .item-node {
+  max-height : 600px;
+  margin     : 25px;
+  padding    : 10px;
+  border     : solid 1px #ddd;
+}
+
+.ISTimeSelect-aboutDlg .item-thumb {
+  float  : left;
+  height : 100px;
+  margin : 10px;
+  border : solid 1px #6eb5e3;
+}
+
+.ISTimeSelect-aboutDlg .item-desc {
+  color     : #666;
+  font-size : smaller;
+}
+
