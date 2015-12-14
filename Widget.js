@@ -6,16 +6,12 @@ define([
   "dojo/query",
   "dojo/dom-class",
   "dojo/date/locale",
-  "dojo/date/stamp",
   "dojo/Deferred",
   "jimu/BaseWidget",
   'dijit/_WidgetsInTemplateMixin',
   "dojo/dnd/Moveable",
-  "esri/arcgis/Portal",
-  "jimu/LayerInfos/LayerInfos",
   "dijit/ConfirmDialog",
   "put-selector/put",
-  "dojo/store/Observable",
   "dojo/store/Memory",
   "esri/layers/ArcGISImageServiceLayer",
   "esri/layers/MosaicRule",
@@ -25,9 +21,8 @@ define([
   "dijit/Toolbar",
   "dijit/form/Button",
   "dijit/form/Select"
-], function (declare, lang, array, on, query, domClass, locale, stamp, Deferred,
-             BaseWidget, _WidgetsInTemplateMixin, Moveable,
-             arcgisPortal, LayerInfos, ConfirmDialog, put, Observable, Memory,
+], function (declare, lang, array, on, query, domClass, locale, Deferred,
+             BaseWidget, _WidgetsInTemplateMixin, Moveable, ConfirmDialog, put, Memory,
              ArcGISImageServiceLayer, MosaicRule, Query, QueryTask, mathUtils) {
 
   /**
@@ -59,6 +54,7 @@ define([
 
       // IMAGERY DATE SELECT //
       this.imageryDateSelect.set("store", new Memory({data: []}));
+
     },
 
     /**
@@ -70,28 +66,25 @@ define([
       // VALIDATE CONFIG //
       this.hasValidConfig = this._validateConfig();
       if(this.hasValidConfig) {
-
-        // IMAGE SERVICE LAYER //
-        this.ISLayer = new ArcGISImageServiceLayer(this.config.itemInfo.url, {id: this.config.itemInfo.id, visible: false});
-        this.ISLayer.on("load", lang.hitch(this, function () {
-          on.once(this.ISLayer, "update-end", lang.hitch(this, function () {
-            this.extentChangeHandle = on.pausable(this.map, "extent-change", lang.hitch(this, this._mapExtentChange));
-            this.extentChangeHandle.pause();
-          }));
-          this.map.addLayer(this.ISLayer);
-        }));
-
+        // ADD IMAGE SERVICE LAYER //
+        this._addImageServiceLayer();
       } else {
-        alert("Invalid config!");
+        alert("Invalid widget config!");
       }
     },
 
     /**
      * VALIDATE CONFIG
-     *  - WE NEED A TITLE, DETAILS ABOUT THE ITEM, A DATE FIELD.
-     *  - A MOSAIC METHOD AND A MINIMUM ZOOM LEVEL ARE SET HERE IF NOT SET IN CONFIG.
+     *  - MOSAIC METHOD AND MINIMUM ZOOM LEVEL ARE SET HERE IF NOT IN CONFIG.
+     *  - WE NEED A TITLE, AN ITEM, AND A DATE FIELD.
      */
     _validateConfig: function () {
+
+      // MOSAIC METHOD //
+      this.mosaicMethod = this.config.mosaicMethod || MosaicRule.METHOD_LOCKRASTER;
+      // MIN ZOOM LEVEL //
+      this.minZoomLevel = this.config.minZoomLevel || 8;
+
       // TITLE //
       var hasTitle = this.config.hasOwnProperty("title") && (this.config.title != null) && (this.config.title.length > 0);
       // ITEM INFO //
@@ -99,13 +92,42 @@ define([
       // DATE FIELD //
       var hasDateField = this.config.hasOwnProperty("dateField") && (this.config.dateField != null && this.config.dateField.length > 0);
 
-      // MOSAIC METHOD //
-      this.mosaicMethod = this.config.mosaicMethod || MosaicRule.METHOD_LOCKRASTER;
-      // MIN ZOOM LEVEL //
-      this.minZoomLevel = this.config.minZoomLevel || 8;
-
       // VALIDATE //
       return hasTitle && hasItemInfo && hasDateField;
+    },
+
+    /**
+     *
+     * @private
+     */
+    _addImageServiceLayer: function () {
+
+      // VALID CONFIG //
+      if(this.hasValidConfig) {
+
+        // IMAGE SERVICE LAYER //
+        this.ISLayer = new ArcGISImageServiceLayer(this.config.itemInfo.url, {id: this.config.itemInfo.id, visible: true});
+        // IMAGE SERVICE LAYER LOADED //
+        this.ISLayer.on("load", lang.hitch(this, function () {
+          // DEFAULT MOSAIC RULE //
+          this.defaultMosaicRule = this.ISLayer.defaultMosaicRule;
+          if(this.defaultMosaicRule == null) {
+            this.defaultMosaicRule = new MosaicRule();
+            this.defaultMosaicRule.method = MosaicRule.METHOD_NONE;
+            this.defaultMosaicRule.operation = MosaicRule.OPERATION_FIRST;
+            this.defaultMosaicRule.ascending = true;
+          }
+          // SET MAP WAIT CURSOR WHILE UPDATING LAYER //
+          this.ISLayer.on("update-start", lang.hitch(this.map, this.map.setMapCursor, "wait"));
+          this.ISLayer.on("update-end", lang.hitch(this.map, this.map.setMapCursor, "default"));
+          // ADD IMAGE SERVICE LAYER //
+          this.map.addLayer(this.ISLayer);
+
+          // MAP EXTENT CHANGE //
+          this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
+        }));
+
+      }
     },
 
     /**
@@ -120,22 +142,14 @@ define([
         extent: this.map.extent,
         level: this.map.getLevel()
       };
+      this.previousLevel = this.previousInfo.level;
 
       // UPDATE DATE CONTROLS //
       this.updateDateControls();
 
-      // DO WE HAVE A VALID CONFIG //
-      if(this.hasValidConfig) {
-        // GET DATES //
-        this.getImageryDates().then(lang.hitch(this, function () {
-          // DISPLAY LAYER //
-          this.ISLayer.show();
-          if(this.extentChangeHandle) {
-            // RESUME EXTENT CHANGE EVENT //
-            this.extentChangeHandle.resume();
-          }
-        }), console.warn);
-      }
+      // GET IMAGERY DATES //
+      this.getImageryDates();
+
     },
 
     /**
@@ -146,16 +160,6 @@ define([
 
       // UPDATE DATE CONTROLS //
       this.updateDateControls();
-
-      // DO WE HAVE A VALID CONFIG //
-      if(this.hasValidConfig) {
-        // HIDE LAYER //
-        this.ISLayer.hide();
-        if(this.extentChangeHandle) {
-          // PAUSE EXTENT CHANGE EVENT //
-          this.extentChangeHandle.pause();
-        }
-      }
     },
 
     /**
@@ -164,15 +168,33 @@ define([
      * @private
      */
     updateDateControls: function () {
+
       // VALID ZOOM LEVEL //
-      var invalidZoomLevel = (this.map.getLevel() < this.minZoomLevel);
-      //   IMAGERY AVAILABILITY //
+      var validZoomLevel = (this.map.getLevel() >= this.minZoomLevel);
+      // IMAGERY AVAILABILITY //
       var hasImagery = this.previousInfo.hasImagery;
-      // ENABLE DATE SELECT //
-      this.imageryDateSelect.set("disabled", !hasImagery || invalidZoomLevel);
+
       // ENABLE PREV/NEXT BUTTONS //
-      this.prevBtn.set("disabled", !hasImagery || invalidZoomLevel || this.isOldest);
-      this.nextBtn.set("disabled", !hasImagery || invalidZoomLevel || this.isNewest);
+      this.prevBtn.set("disabled", !hasImagery || !validZoomLevel || this.isOldest);
+      this.nextBtn.set("disabled", !hasImagery || !validZoomLevel || this.isNewest);
+
+      // ENABLE DATE SELECT //
+      this.imageryDateSelect.set("disabled", !hasImagery || !validZoomLevel);
+      if(this.imageryDateSelect.get("disabled")) {
+        this.setDisplayMessage((!validZoomLevel) ? this.nls.zoomInToSelectDate : this.nls.noImageryAvailable);
+        // USE DEFAULT MOSAIC RULE //
+        if(this.ISLayer && this.defaultMosaicRule) {
+          this.ISLayer.setMosaicRule(this.defaultMosaicRule);
+        }
+      }
+    },
+
+    /**
+     *
+     * @param message
+     */
+    setDisplayMessage: function (message) {
+      this.imageryDateSelect._setDisplay(message || "");
     },
 
     /**
@@ -182,24 +204,32 @@ define([
      * @private
      */
     _mapExtentChange: function (evt) {
+      //console.info("_mapExtentChange: ", evt.lod.level, evt.levelChange);
 
       // VALID ZOOM LEVEL //
-      var invalidZoomLevel = (evt.lod.level < this.minZoomLevel);
-      if(!invalidZoomLevel) {
+      var validZoomLevel = (evt.lod.level >= this.minZoomLevel);
+      if(validZoomLevel) {
         // HAS THE MAP EXTENT CHANGED SUFFICIENT TO UPDATE THE DATES? //
         var needsUpdate = false;
 
         // NEEDS UPDATE BASED ON LEVEL CHANGE? //
         if(evt.levelChange) {
-          if(Math.abs(evt.lod.level - this.previousInfo.level) >= this.mapZoomFactor) {
+          var zoomLevelChange = Math.abs(evt.lod.level - this.previousInfo.level);
+          if(zoomLevelChange >= this.mapZoomFactor) {
             console.info("LARGE zoom: ", evt);
             needsUpdate = true;
+          } else {
+            // NOT A BIG CHANGE BUT WE'VE CROSSED THE MIN ZOOM LEVEL THRESHOLD //
+            if(this.previousLevel < this.minZoomLevel) {
+              console.info("THRESHOLD zoom: ", evt);
+              needsUpdate = true;
+            }
           }
         } else {
           // NEEDS UPDATE BASED ON PAN CHANGE? //
           var panDistance = Math.abs(mathUtils.getLength(evt.extent.getCenter(), this.previousInfo.extent.getCenter()));
-          var mapWidth = (this.map.extent.getWidth() * this.mapWidthPanFactor);
-          if(panDistance > mapWidth) {
+          var previousMapWidth = (this.previousInfo.extent.getWidth() * this.mapWidthPanFactor);
+          if(panDistance > previousMapWidth) {
             console.info("LARGE pan: ", evt);
             needsUpdate = true;
           }
@@ -208,12 +238,13 @@ define([
         // NEEDS UPDATE //
         if(needsUpdate) {
           this.getImageryDates();
-        } else {
-          console.info("_mapExtentChange: ", evt);
         }
       } else {
-        console.info("_mapExtentChange: invalidZoomLevel: ", evt.lod.level, this.minZoomLevel)
+        this.updateDateControls();
       }
+
+      // PREVIOUS LEVEL //
+      this.previousLevel = evt.lod.level;
     },
 
     /**
@@ -259,6 +290,7 @@ define([
      * @private
      */
     _onDateChange: function (selectedDateText) {
+      var deferred = new Deferred();
 
       if(this.hasValidConfig) {
         // GET SELECTED ITEM //
@@ -315,6 +347,7 @@ define([
             newMosaicRule.sortField = this.config.dateField;
             newMosaicRule.sortValue = selectedItem.queryDate;
           }
+
           // SET MOSAIC RULE //
           this.ISLayer.setMosaicRule(newMosaicRule);
 
@@ -322,9 +355,19 @@ define([
           var selectionIndex = imageryDatesStore.index[selectedItem.id];
           this.isOldest = (selectionIndex === (imageryDatesStore.data.length - 1));
           this.isNewest = (selectionIndex === 0);
+
+          // UPDATE DATE CONTROLS //
           this.updateDateControls();
+
+          deferred.resolve();
+        } else {
+          deferred.reject();
         }
+      } else {
+        deferred.reject();
       }
+
+      return deferred.promise;
     },
 
     /**
@@ -336,10 +379,16 @@ define([
       var deferred = new Deferred();
 
       if(this.hasValidConfig) {
+
+        // CANCEL PREVIOUS REQUESTS //
+        if(this.getImageDatesHandle && !this.getImageDatesHandle.isFulfilled()) {
+          this.getImageDatesHandle.cancel();
+        }
+
         // GET CURRENT DATE //
         var currentValue = this.imageryDateSelect.get("value");
-        // CLEAR CURRENT DATE //
-        this.imageryDateSelect._setDisplay("");
+        // DISPLAY MESSAGE //
+        this.setDisplayMessage(this.nls.findingImageryDates);
 
         // DATE QUERY //
         var dateQuery = new Query();
@@ -351,8 +400,8 @@ define([
 
         // QUERY TASK //
         var queryTask = new QueryTask(this.ISLayer.url);
-        queryTask.execute(dateQuery).then(lang.hitch(this, function (featureSet) {
-          console.info("getImageryDates: ", featureSet);
+        this.getImageDatesHandle = queryTask.execute(dateQuery).then(lang.hitch(this, function (featureSet) {
+          //console.info("getImageryDates: ", featureSet);
 
           // DO WE HAVE IMAGERY IN THIS EXTENT? //
           var hasImagery = (featureSet.features.length > 0);
@@ -406,14 +455,16 @@ define([
           // SET CURRENT TO PREVIOUS IF PREVIOUS DATE STILL EXISTS IN NEW LIST OF DATES //
           if(currentValue && (imageryDatesStore.get(currentValue) != null)) {
             this.imageryDateSelect.set("value", currentValue);
+            // SETTING DATE TO PREVIOUS DATE DOES NOT TRIGGER DIJIT CHANGE EVENT //
+            this._onDateChange(currentValue);
+
           } else {
             if(hasImagery) {
               this.imageryDateSelect.set("value", imageryDatesStore.data[0].id);
             } else {
-              this.imageryDateSelect._setDisplay(this.nls.noImageryAvailable);
+              this.updateDateControls();
             }
           }
-
           deferred.resolve();
         }));
       } else {
@@ -440,6 +491,7 @@ define([
           target: "_blank"
         });
       }
+      put(aboutContentNode, "div div", lang.replace("Version: {version}", this));
 
       // ABOUT DIALOG //
       var aboutDialog = new ConfirmDialog({
