@@ -99,8 +99,18 @@ define([
       // VALID CONFIG //
       if(this.hasValidConfig) {
 
+
+        console.info(this.config.itemInfo);
+
+
         // IMAGE SERVICE LAYER //
-        this.ISLayer = new ArcGISImageServiceLayer(this.config.itemInfo.url, {id: this.config.itemInfo.id, visible: true});
+        this.ISLayer = new ArcGISImageServiceLayer(this.config.itemInfo.url, {id: this.config.itemInfo.id});
+        // ERROR LOADING LAYER //
+        this.ISLayer.on("error", lang.hitch(this, function (error) {
+          console.warn("ERROR LOADING LAYER: ", error, this.config.itemInfo);
+          this.hasValidConfig = false;
+        }));
+
         // IMAGE SERVICE LAYER LOADED //
         this.ISLayer.on("load", lang.hitch(this, function () {
           // DEFAULT MOSAIC RULE //
@@ -134,8 +144,12 @@ define([
       // UPDATE DATE CONTROLS //
       this.updateDateControls();
 
-      // GET IMAGERY DATES //
-      this.getImageryDates();
+      if(this.hasValidConfig) {
+        // GET IMAGERY DATES //
+        this.getImageryDates();
+      } else {
+        alert("Invalid widget configuration");
+      }
 
     },
 
@@ -474,7 +488,7 @@ define([
       // ABOUT DIALOG CONTENT //
       var aboutContentNode = put("div.about-content");
       put(aboutContentNode, "div span", {innerHTML: lang.replace("{nls.aboutContent}. {nls.versionLabel}: {version}", this)});
-      put(aboutContentNode, "hr +div span",{innerHTML: lang.replace("{nls.zoomLevelLabel}: {config.minZoomLevel}", this)});
+      put(aboutContentNode, "hr +div span", {innerHTML: lang.replace("{nls.zoomLevelLabel}: {config.minZoomLevel}", this)});
       var currentNode = put(aboutContentNode, "hr +div");
       put(currentNode, "span", {innerHTML: lang.replace("{nls.currentItemLabel}: ", this)});
 
