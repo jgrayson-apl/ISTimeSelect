@@ -99,10 +99,6 @@ define([
       // VALID CONFIG //
       if(this.hasValidConfig) {
 
-
-        console.info(this.config.itemInfo);
-
-
         // IMAGE SERVICE LAYER //
         this.ISLayer = new ArcGISImageServiceLayer(this.config.itemInfo.url, {id: this.config.itemInfo.id});
         // ERROR LOADING LAYER //
@@ -110,7 +106,6 @@ define([
           console.warn("ERROR LOADING LAYER: ", error, this.config.itemInfo);
           this.hasValidConfig = false;
         }));
-
         // IMAGE SERVICE LAYER LOADED //
         this.ISLayer.on("load", lang.hitch(this, function () {
           // DEFAULT MOSAIC RULE //
