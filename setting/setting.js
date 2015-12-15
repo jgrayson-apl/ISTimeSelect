@@ -74,8 +74,7 @@ define([
         on(this.itemSelector, "item-selected, none-item-selected", lang.hitch(this, function (selectedItem) {
           this.selectedItem = selectedItem;
           selectItemDlg.okButton.set("disabled", (this.selectedItem == null));
-          this.imageServiceItemTitleInput.set("value", (this.selectedItem != null) ? this.selectedItem.title : "");
-          this.dateFieldsSelect._setDisplay("");
+          this._clearValues();
         }));
         this.itemSelector.startup();
 
@@ -89,6 +88,8 @@ define([
      * @private
      */
     _itemSelected: function (itemInfo) {
+
+      console.info("_itemSelected", itemInfo);
 
       this.itemInfo = itemInfo ? {
         id: itemInfo.id,
@@ -108,7 +109,7 @@ define([
         var ISLayer = new ArcGISImageServiceLayer(this.itemInfo.url);
         ISLayer.on("load", lang.hitch(this, function () {
           // ZOOM LEVEL //
-          this.zoomLevelInput.set("value", ISLayer.minScale || 8);
+          this.zoomLevelInput.set("value", ISLayer.minScale || this.config.minZoomLevel);
 
           // DATE FIELD //
           var dateFieldStore = new Memory({
@@ -132,10 +133,20 @@ define([
         }));
 
       } else {
-        this.imageServiceItemTitleInput.set("value", "");
-        this.dateFieldsSelect._setDisplay("");
+        this._clearValues();
       }
 
+    },
+
+    /**
+     *
+     * @private
+     */
+    _clearValues: function () {
+      this.imageServiceItemTitleInput.set("value", "");
+      this.zoomLevelInput.set("value", this.config.minZoomLevel);
+      this.dateFieldsSelect.set("value", null);
+      this.dateFieldsSelect._setDisplay("");
     },
 
     /**

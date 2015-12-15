@@ -75,15 +75,9 @@ define([
 
     /**
      * VALIDATE CONFIG
-     *  - MOSAIC METHOD AND MINIMUM ZOOM LEVEL ARE SET HERE IF NOT IN CONFIG.
      *  - WE NEED A TITLE, AN ITEM, AND A DATE FIELD.
      */
     _validateConfig: function () {
-
-      // MOSAIC METHOD //
-      this.mosaicMethod = this.config.mosaicMethod || MosaicRule.METHOD_LOCKRASTER;
-      // MIN ZOOM LEVEL //
-      this.minZoomLevel = this.config.minZoomLevel || 8;
 
       // TITLE //
       var hasTitle = this.config.hasOwnProperty("title") && (this.config.title != null) && (this.config.title.length > 0);
@@ -163,7 +157,7 @@ define([
     updateDateControls: function () {
 
       // VALID ZOOM LEVEL //
-      var validZoomLevel = (this.map.getLevel() >= this.minZoomLevel);
+      var validZoomLevel = (this.map.getLevel() >= this.config.minZoomLevel);
       // IMAGERY AVAILABILITY //
       var hasImagery = this.previousInfo.hasImagery;
 
@@ -200,7 +194,7 @@ define([
     _mapExtentChange: function (evt) {
 
       // VALID ZOOM LEVEL //
-      var validZoomLevel = (evt.lod.level >= this.minZoomLevel);
+      var validZoomLevel = (evt.lod.level >= this.config.minZoomLevel);
       if(validZoomLevel) {
         // HAS THE MAP EXTENT CHANGED SUFFICIENT TO UPDATE THE DATES? //
         var needsUpdate = false;
@@ -213,7 +207,7 @@ define([
             needsUpdate = true;
           } else {
             // NOT A BIG CHANGE BUT WE'VE CROSSED THE MIN ZOOM LEVEL THRESHOLD //
-            if(this.previousLevel < this.minZoomLevel) {
+            if(this.previousLevel < this.config.minZoomLevel) {
               console.info("THRESHOLD zoom: ", evt);
               needsUpdate = true;
             }
@@ -333,7 +327,7 @@ define([
           var newMosaicRule = new MosaicRule();
           newMosaicRule.ascending = true;
           newMosaicRule.operation = MosaicRule.OPERATION_FIRST;
-          newMosaicRule.method = this.mosaicMethod;
+          newMosaicRule.method = this.config.mosaicMethod;
 
           // MOSAIC METHOD //
           if(newMosaicRule.method === MosaicRule.METHOD_LOCKRASTER) {
@@ -480,6 +474,7 @@ define([
       // ABOUT DIALOG CONTENT //
       var aboutContentNode = put("div.about-content");
       put(aboutContentNode, "div span", {innerHTML: lang.replace("{nls.aboutContent}. {nls.versionLabel}: {version}", this)});
+      put(aboutContentNode, "hr +div span",{innerHTML: lang.replace("{nls.zoomLevelLabel}: {config.minZoomLevel}", this)});
       var currentNode = put(aboutContentNode, "hr +div");
       put(currentNode, "span", {innerHTML: lang.replace("{nls.currentItemLabel}: ", this)});
 
