@@ -9,6 +9,7 @@ define([
   "dojo/Deferred",
   "jimu/BaseWidget",
   'dijit/_WidgetsInTemplateMixin',
+  "jimu/dijit/LayerChooserFromMap",
   "dojo/dnd/Moveable",
   "dijit/ConfirmDialog",
   "put-selector/put",
@@ -22,7 +23,7 @@ define([
   "dijit/form/Button",
   "dijit/form/Select"
 ], function (declare, lang, array, on, query, domClass, locale, Deferred,
-             BaseWidget, _WidgetsInTemplateMixin, Moveable, ConfirmDialog, put, Memory,
+             BaseWidget, _WidgetsInTemplateMixin, LayerChooserFromMap, Moveable, ConfirmDialog, put, Memory,
              ArcGISImageServiceLayer, MosaicRule, Query, QueryTask, mathUtils) {
 
   /**
@@ -61,6 +62,9 @@ define([
      */
     startup: function () {
       this.inherited(arguments);
+
+      // VALIDATE CONFIG //
+      this.hasValidConfig = this._validateConfig();
     },
 
     /**
@@ -80,9 +84,7 @@ define([
       // UPDATE DATE CONTROLS //
       this.updateDateControls();
 
-      // VALIDATE CONFIG //
-      this.hasValidConfig = this._validateConfig();
-      if(this.hasValidConfig) {
+      if(this.hasValidConfig && (this.ISLayer == null)) {
         // ADD IMAGE SERVICE LAYER //
         this._addImageServiceLayer().then(lang.hitch(this, function () {
           // GET IMAGERY DATES //
@@ -144,13 +146,38 @@ define([
           // SET MAP WAIT CURSOR WHILE UPDATING LAYER //
           this.ISLayer.on("update-start", lang.hitch(this.map, this.map.setMapCursor, "wait"));
           this.ISLayer.on("update-end", lang.hitch(this.map, this.map.setMapCursor, "default"));
-          // ADD IMAGE SERVICE LAYER //
-          this.map.addLayer(this.ISLayer);
+
+          if(this.map.webMapResponse.operationalLayers.length == 0) {
+            // ADD IMAGE SERVICE LAYER //
+            this.map.addLayer(this.ISLayer);
+
+          } else {
+
+            var layerChooserDlg = new ConfirmDialog({title: "Add Layer ABOVE which map layer?"});
+            layerChooserDlg.show();
+
+            var layerChooser = new LayerChooserFromMap({
+              multiple: false,
+              showLayerFromFeatureSet: false,
+              createMapResponse: this.map.webMapResponse
+            }, put(layerChooserDlg.containerNode, "div.layer-chooser-node"));
+            layerChooser.startup();
+
+            on(layerChooser, "tree-click", lang.hitch(this, function (evt) {
+              var selectedItem = layerChooser.getSelectedItems()[0];
+              var selectedLayer = selectedItem.layerInfo.layerObject;
+              var selectedLayerIndex = array.indexOf(this.map.layerIds, selectedLayer.id);
+              // ADD IMAGE SERVICE LAYER //
+              this.map.addLayer(this.ISLayer, selectedLayerIndex - 1);
+              layerChooserDlg.hide();
+            }));
+
+          }
+
           // MAP EXTENT CHANGE //
           this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
           deferred.resolve();
         }));
-
       } else {
         deferred.reject()
       }
