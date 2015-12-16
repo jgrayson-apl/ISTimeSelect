@@ -54,7 +54,6 @@ define([
 
       // INITIALIZE IMAGERY DATE SELECT //
       this.imageryDateSelect.set("store", new Memory({data: []}));
-
     },
 
     /**
@@ -62,15 +61,46 @@ define([
      */
     startup: function () {
       this.inherited(arguments);
+    },
+
+    /**
+     *  WIDGET IS OPENED
+     */
+    onOpen: function () {
+      this.inherited(arguments);
+
+      // INITIAL INFO //
+      this.previousInfo = {
+        hasImagery: false,
+        extent: this.map.extent,
+        level: this.map.getLevel()
+      };
+      this.previousLevel = this.previousInfo.level;
+
+      // UPDATE DATE CONTROLS //
+      this.updateDateControls();
 
       // VALIDATE CONFIG //
       this.hasValidConfig = this._validateConfig();
       if(this.hasValidConfig) {
         // ADD IMAGE SERVICE LAYER //
-        this._addImageServiceLayer();
+        this._addImageServiceLayer().then(lang.hitch(this, function () {
+          // GET IMAGERY DATES //
+          this.getImageryDates();
+        }), console.warn);
       } else {
         alert("Invalid widget configuration");
       }
+    },
+
+    /**
+     * WIDGET IS CLOSED
+     */
+    onClose: function () {
+      this.inherited(arguments);
+
+      // UPDATE DATE CONTROLS //
+      this.updateDateControls();
     },
 
     /**
@@ -78,16 +108,15 @@ define([
      *  - WE NEED A TITLE, AN ITEM, AND A DATE FIELD.
      */
     _validateConfig: function () {
-
       // TITLE //
       var hasTitle = this.config.hasOwnProperty("title") && (this.config.title != null) && (this.config.title.length > 0);
-      // ITEM INFO //
-      var hasItemInfo = this.config.hasOwnProperty("itemInfo") && (this.config.itemInfo != null);
+      // SELECTED ITEM //
+      var hasSelectedItem = this.config.hasOwnProperty("selectedItem") && (this.config.selectedItem != null);
       // DATE FIELD //
       var hasDateField = this.config.hasOwnProperty("dateField") && (this.config.dateField != null && this.config.dateField.length > 0);
 
       // VALIDATE //
-      return hasTitle && hasItemInfo && hasDateField;
+      return hasTitle && hasSelectedItem && hasDateField;
     },
 
     /**
@@ -95,16 +124,18 @@ define([
      * @private
      */
     _addImageServiceLayer: function () {
+      var deferred = new Deferred();
 
       // VALID CONFIG //
       if(this.hasValidConfig) {
 
         // IMAGE SERVICE LAYER //
-        this.ISLayer = new ArcGISImageServiceLayer(this.config.itemInfo.url, {id: this.config.itemInfo.id});
+        this.ISLayer = new ArcGISImageServiceLayer(this.config.selectedItem.url);
         // ERROR LOADING LAYER //
         this.ISLayer.on("error", lang.hitch(this, function (error) {
-          console.warn("ERROR LOADING LAYER: ", error, this.config.itemInfo);
+          console.warn("ERROR LOADING LAYER: ", error, this.config);
           this.hasValidConfig = false;
+          deferred.reject();
         }));
         // IMAGE SERVICE LAYER LOADED //
         this.ISLayer.on("load", lang.hitch(this, function () {
@@ -117,45 +148,14 @@ define([
           this.map.addLayer(this.ISLayer);
           // MAP EXTENT CHANGE //
           this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
+          deferred.resolve();
         }));
 
-      }
-    },
-
-    /**
-     *  WIDGET IS OPENED
-     */
-    onOpen: function () {
-      this.inherited(arguments);
-
-      // INITIAL PREVIOUS INFO //
-      this.previousInfo = {
-        hasImagery: false,
-        extent: this.map.extent,
-        level: this.map.getLevel()
-      };
-      this.previousLevel = this.previousInfo.level;
-
-      // UPDATE DATE CONTROLS //
-      this.updateDateControls();
-
-      if(this.hasValidConfig) {
-        // GET IMAGERY DATES //
-        this.getImageryDates();
       } else {
-        alert("Invalid widget configuration");
+        deferred.reject()
       }
 
-    },
-
-    /**
-     * WIDGET IS CLOSED
-     */
-    onClose: function () {
-      this.inherited(arguments);
-
-      // UPDATE DATE CONTROLS //
-      this.updateDateControls();
+      return deferred.promise;
     },
 
     /**
@@ -488,15 +488,15 @@ define([
       put(currentNode, "span", {innerHTML: lang.replace("{nls.currentItemLabel}: ", this)});
 
       // ITEM DETAILS //
-      if(this.config.itemInfo) {
+      if(this.config.selectedItem) {
         put(currentNode, "a", {
-          innerHTML: this.config.itemInfo.title,
-          href: this.config.itemInfo.detailsPageUrl,
+          innerHTML: this.config.selectedItem.title,
+          href: this.config.selectedItem.detailsPageUrl,
           target: "_blank"
         });
         var itemNode = put(currentNode, "div div.item-node");
-        put(itemNode, "img.item-thumb", {src: this.config.itemInfo.thumbnailUrl});
-        put(itemNode, "div.item-desc", {innerHTML: this.config.itemInfo.description});
+        put(itemNode, "img.item-thumb", {src: this.config.selectedItem.thumbnailUrl});
+        put(itemNode, "div.item-desc", {innerHTML: this.config.selectedItem.description});
       }
 
       // ABOUT DIALOG //

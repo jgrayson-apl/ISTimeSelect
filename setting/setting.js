@@ -3,6 +3,7 @@ define([
   "dojo/_base/lang",
   "dojo/_base/array",
   "dojo/on",
+  "dojo/json",
   "dojo/dom-class",
   "put-selector/put",
   "jimu/BaseWidgetSetting",
@@ -16,7 +17,7 @@ define([
   "dijit/form/TextBox",
   "dijit/form/NumberSpinner",
   "dijit/form/Select"
-], function (declare, lang, array, on, domClass, put, BaseWidgetSetting, _WidgetsInTemplateMixin,
+], function (declare, lang, array, on, json, domClass, put, BaseWidgetSetting, _WidgetsInTemplateMixin,
              ItemSelector, ArcGISImageServiceLayer, MosaicRule, Memory, ConfirmDialog) {
 
   /**
@@ -58,7 +59,8 @@ define([
         });
         selectItemDlg.okButton.set("disabled", true);
         selectItemDlg.on("cancel", lang.hitch(this, function () {
-          this._itemSelected();
+          this.selectedItem = null;
+          this._clearValues();
         }));
         selectItemDlg.on("execute", lang.hitch(this, function () {
           this._itemSelected(this.selectedItem);
@@ -84,29 +86,17 @@ define([
 
     /**
      *
-     * @param itemInfo
      * @private
      */
-    _itemSelected: function (itemInfo) {
+    _itemSelected: function () {
 
-      console.info("_itemSelected", itemInfo);
-
-      this.itemInfo = itemInfo ? {
-        id: itemInfo.id,
-        title: itemInfo.title,
-        url: itemInfo.url,
-        thumbnailUrl: itemInfo.thumbnailUrl,
-        description: itemInfo.description,
-        detailsPageUrl: itemInfo.detailsPageUrl
-      } : null;
-
-      if(this.itemInfo) {
+      if(this.selectedItem) {
 
         // IMAGE SERVICE TITLE //
-        this.imageServiceItemTitleInput.set("value", this.itemInfo.title);
+        this.imageServiceItemTitleInput.set("value", this.selectedItem.title);
 
         // IMAGE SERVICE DATE FIELDS //
-        var ISLayer = new ArcGISImageServiceLayer(this.itemInfo.url);
+        var ISLayer = new ArcGISImageServiceLayer(this.selectedItem.url, {id: this.selectedItem.id});
         ISLayer.on("load", lang.hitch(this, function () {
           // ZOOM LEVEL //
           this.zoomLevelInput.set("value", ISLayer.minScale || this.config.minZoomLevel);
@@ -155,7 +145,7 @@ define([
      */
     setConfig: function (config) {
       this.titleInput.set("value", config.title || this.label || "");
-      this._itemSelected(config.itemInfo);
+      this._itemSelected(config.selectedItem);
     },
 
     /**
@@ -163,9 +153,13 @@ define([
      * @returns {{configText: string}}
      */
     getConfig: function () {
+
+      // REMOVE PORTAL REFERENCE //
+      delete this.selectedItem.portal;
+
       return {
-        title: this.titleInput.get("value") || this.label || "",
-        itemInfo: this.itemInfo,
+        title: this.titleInput.get("value"),
+        selectedItem: this.selectedItem,
         dateField: this.dateFieldsSelect.get("value"),
         minZoomLevel: this.zoomLevelInput.get("value"),
         mosaicMethod: this.mosaicMethodSelect.get("value")

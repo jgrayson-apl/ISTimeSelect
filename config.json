@@ -2,7 +2,7 @@
   "label": "IS Time Select",
   "title": "IS Time Select",
   "minZoomLevel": 8,
-  "itemInfo": null,
+  "selectedItem": null,
   "dateField": null,
   "mosaicMethod": "esriMosaicAttribute"
 }
