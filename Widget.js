@@ -63,6 +63,14 @@ define([
     startup: function () {
       this.inherited(arguments);
 
+      // INITIAL INFO //
+      this.previousInfo = {
+        hasImagery: false,
+        extent: this.map.extent,
+        level: this.map.getLevel()
+      };
+      this.previousLevel = this.previousInfo.level;
+
       // VALIDATE CONFIG //
       this.hasValidConfig = this._validateConfig();
     },
@@ -73,23 +81,22 @@ define([
     onOpen: function () {
       this.inherited(arguments);
 
-      // INITIAL INFO //
-      this.previousInfo = {
-        hasImagery: false,
-        extent: this.map.extent,
-        level: this.map.getLevel()
-      };
-      this.previousLevel = this.previousInfo.level;
-
       // UPDATE DATE CONTROLS //
       this.updateDateControls();
 
-      if(this.hasValidConfig && (this.ISLayer == null)) {
-        // ADD IMAGE SERVICE LAYER //
-        this._addImageServiceLayer().then(lang.hitch(this, function () {
-          // GET IMAGERY DATES //
-          this.getImageryDates();
-        }), console.warn);
+      // DO WE HAVE A VALID CONFIGURATION //
+      if(this.hasValidConfig) {
+        // HAS THE LAYER BEEN CREATED YET //
+        if(this.ISLayer == null) {
+          // ADD IMAGE SERVICE LAYER //
+          this._addImageServiceLayer().then(lang.hitch(this, function () {
+            // INITIALLY GET DATES IF ENABLED //
+            if(this.enabled) {
+              // GET IMAGERY DATES //
+              this.getImageryDates();
+            }
+          }), console.warn);
+        }
       } else {
         alert("Invalid widget configuration");
       }
@@ -100,9 +107,6 @@ define([
      */
     onClose: function () {
       this.inherited(arguments);
-
-      // UPDATE DATE CONTROLS //
-      this.updateDateControls();
     },
 
     /**
@@ -150,15 +154,16 @@ define([
           // MAP EXTENT CHANGE //
           this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
 
-
-          if(this.map.webMapResponse.operationalLayers.length == 0) {
+          // OPERATIONAL LAYERS //
+          var operationalLayer = this.map.webMapResponse.itemInfo.itemData.operationalLayers;
+          if(operationalLayer.length == 0) {
             // ADD IMAGE SERVICE LAYER //
             this.map.addLayer(this.ISLayer);
             deferred.resolve();
 
           } else {
 
-            var layerChooserDlg = new ConfirmDialog({title: "Add Layer ABOVE which map layer?"});
+            var layerChooserDlg = new ConfirmDialog({title: "Add Image Service Layer ABOVE which map layer?"});
             layerChooserDlg.show();
 
             var layerChooser = new LayerChooserFromMap({
@@ -201,19 +206,25 @@ define([
       // IMAGERY AVAILABILITY //
       var hasImagery = this.previousInfo.hasImagery;
 
+      // ENABLED //
+      this.enabled = (hasImagery && validZoomLevel);
+
       // ENABLE PREV/NEXT BUTTONS //
-      this.prevBtn.set("disabled", !hasImagery || !validZoomLevel || this.isOldest);
-      this.nextBtn.set("disabled", !hasImagery || !validZoomLevel || this.isNewest);
+      this.prevBtn.set("disabled", (!this.enabled) || this.isOldest);
+      this.nextBtn.set("disabled", (!this.enabled) || this.isNewest);
 
       // ENABLE DATE SELECT //
-      this.imageryDateSelect.set("disabled", !hasImagery || !validZoomLevel);
-      if(this.imageryDateSelect.get("disabled")) {
+      this.imageryDateSelect.set("disabled", !this.enabled);
+
+      if(!this.enabled) {
+        // RESET DISPLAY MESSAGE //
         this.setDisplayMessage((!validZoomLevel) ? this.nls.zoomInToSelectDate : this.nls.noImageryAvailable);
         // USE DEFAULT MOSAIC RULE //
         if(this.ISLayer && this.defaultMosaicRule) {
           this.ISLayer.setMosaicRule(this.defaultMosaicRule);
         }
       }
+
     },
 
     /**
@@ -308,95 +319,6 @@ define([
       } else {
         console.info("Could not find item: ", currentDateText, selectionItem);
       }
-    },
-
-    /**
-     * NEW DATE SELECTED IN DATE SELECT LIST
-     *
-     * @param selectedDateText
-     * @private
-     */
-    _onDateChange: function (selectedDateText) {
-      var deferred = new Deferred();
-
-      console.info("_onDateChange: ", selectedDateText);
-
-      if(this.hasValidConfig) {
-        // GET SELECTED ITEM //
-        var imageryDatesStore = this.imageryDateSelect.get("store");
-        var selectedItem = imageryDatesStore.get(selectedDateText);
-        if(selectedItem) {
-
-          //       - http://resources.arcgis.com/en/help/arcgis-rest-api/index.html#/Mosaic_rule_objects/02r3000000s4000000/
-          //
-          //         ByAttribute: Orders rasters based on the absolute distance between their values of an attribute and a base value. Only numeric or date fields are applicable. Mosaic results are view-independent.
-          //
-          //            {
-          //              "mosaicMethod" : "esriMosaicAttribute", //required
-          //              "sortField" : "<sortFieldName>",//required, numeric or date fields only.
-          //              "sortValue" : <sortValue>,//optional, default is null or 0. Use numeric values for numeric fields and use the following string format for date field:
-          //                            yyyy/MM/dd HH:mm:ss.s
-          //                            yyyy/MM/dd HH:mm:ss
-          //                            yyyy/MM/dd HH:mm
-          //                            yyyy/MM/dd HH
-          //                            yyyy/MM/dd
-          //                            yyyy/MM
-          //                            yyyy
-          //
-          //                "ascending" : <true | false>,//optional, default is true
-          //                "where" : "<where>", //optional
-          //                "fids" : [<fid1>, <fid2>],//optional
-          //                "mosaicOperation" : "<MT_FIRST | MT_BLEND | MT_SUM>" //default is MT_FIRST
-          //              }
-          //
-          //          LockRaster: Displays only the selected rasters. Mosaic results are view-independent.
-          //
-          //            {
-          //              "mosaicMethod" : "esriMosaicLockRaster", //required
-          //              "lockRasterIds" : [<rasterId1>, <rasterId2>],  //required
-          //              "where" : "<where>", //optional
-          //              "ascending" : <true | false>,//optional, default is true
-          //              "fids" : [<fid1>, <fid2>],//optional
-          //              "mosaicOperation" : "<MT_FIRST | MT_LAST | MT_MIN | MT_MAX | MT_MEAN | MT_BLEND | MT_SUM>" //default is MT_FIRST
-          //            }
-          //
-          //       - http://desktop.arcgis.com/en/desktop/latest/manage-data/raster-and-images/understanding-the-mosaicking-rules-for-a-mosaic-dataset.htm
-
-
-          // NEW MOSAIC RULE //
-          var newMosaicRule = new MosaicRule();
-          newMosaicRule.ascending = true;
-          newMosaicRule.operation = MosaicRule.OPERATION_FIRST;
-          newMosaicRule.method = this.config.mosaicMethod;
-
-          // MOSAIC METHOD //
-          if(newMosaicRule.method === MosaicRule.METHOD_LOCKRASTER) {
-            newMosaicRule.lockRasterIds = selectedItem.lockRasterIds;
-          } else {
-            newMosaicRule.sortField = this.config.dateField;
-            newMosaicRule.sortValue = selectedItem.queryDate;
-          }
-
-          // SET MOSAIC RULE //
-          this.ISLayer.setMosaicRule(newMosaicRule);
-
-          // SELECTION INDEX //
-          var selectionIndex = imageryDatesStore.index[selectedItem.id];
-          this.isOldest = (selectionIndex === (imageryDatesStore.data.length - 1));
-          this.isNewest = (selectionIndex === 0);
-
-          // UPDATE DATE CONTROLS //
-          this.updateDateControls();
-
-          deferred.resolve();
-        } else {
-          deferred.reject();
-        }
-      } else {
-        deferred.reject();
-      }
-
-      return deferred.promise;
     },
 
     /**
@@ -496,6 +418,95 @@ define([
           }
           deferred.resolve();
         }));
+      } else {
+        deferred.reject();
+      }
+
+      return deferred.promise;
+    },
+
+    /**
+     * NEW DATE SELECTED IN DATE SELECT LIST
+     *
+     * @param selectedDateText
+     * @private
+     */
+    _onDateChange: function (selectedDateText) {
+      var deferred = new Deferred();
+
+      console.info("_onDateChange: ", selectedDateText);
+
+      if(this.hasValidConfig) {
+        // GET SELECTED ITEM //
+        var imageryDatesStore = this.imageryDateSelect.get("store");
+        var selectedItem = imageryDatesStore.get(selectedDateText);
+        if(selectedItem) {
+
+          //       - http://resources.arcgis.com/en/help/arcgis-rest-api/index.html#/Mosaic_rule_objects/02r3000000s4000000/
+          //
+          //         ByAttribute: Orders rasters based on the absolute distance between their values of an attribute and a base value. Only numeric or date fields are applicable. Mosaic results are view-independent.
+          //
+          //            {
+          //              "mosaicMethod" : "esriMosaicAttribute", //required
+          //              "sortField" : "<sortFieldName>",//required, numeric or date fields only.
+          //              "sortValue" : <sortValue>,//optional, default is null or 0. Use numeric values for numeric fields and use the following string format for date field:
+          //                            yyyy/MM/dd HH:mm:ss.s
+          //                            yyyy/MM/dd HH:mm:ss
+          //                            yyyy/MM/dd HH:mm
+          //                            yyyy/MM/dd HH
+          //                            yyyy/MM/dd
+          //                            yyyy/MM
+          //                            yyyy
+          //
+          //                "ascending" : <true | false>,//optional, default is true
+          //                "where" : "<where>", //optional
+          //                "fids" : [<fid1>, <fid2>],//optional
+          //                "mosaicOperation" : "<MT_FIRST | MT_BLEND | MT_SUM>" //default is MT_FIRST
+          //              }
+          //
+          //          LockRaster: Displays only the selected rasters. Mosaic results are view-independent.
+          //
+          //            {
+          //              "mosaicMethod" : "esriMosaicLockRaster", //required
+          //              "lockRasterIds" : [<rasterId1>, <rasterId2>],  //required
+          //              "where" : "<where>", //optional
+          //              "ascending" : <true | false>,//optional, default is true
+          //              "fids" : [<fid1>, <fid2>],//optional
+          //              "mosaicOperation" : "<MT_FIRST | MT_LAST | MT_MIN | MT_MAX | MT_MEAN | MT_BLEND | MT_SUM>" //default is MT_FIRST
+          //            }
+          //
+          //       - http://desktop.arcgis.com/en/desktop/latest/manage-data/raster-and-images/understanding-the-mosaicking-rules-for-a-mosaic-dataset.htm
+
+
+          // NEW MOSAIC RULE //
+          var newMosaicRule = new MosaicRule();
+          newMosaicRule.ascending = true;
+          newMosaicRule.operation = MosaicRule.OPERATION_FIRST;
+          newMosaicRule.method = this.config.mosaicMethod;
+
+          // MOSAIC METHOD //
+          if(newMosaicRule.method === MosaicRule.METHOD_LOCKRASTER) {
+            newMosaicRule.lockRasterIds = selectedItem.lockRasterIds;
+          } else {
+            newMosaicRule.sortField = this.config.dateField;
+            newMosaicRule.sortValue = selectedItem.queryDate;
+          }
+
+          // SET MOSAIC RULE //
+          this.ISLayer.setMosaicRule(newMosaicRule);
+
+          // SELECTION INDEX //
+          var selectionIndex = imageryDatesStore.index[selectedItem.id];
+          this.isOldest = (selectionIndex === (imageryDatesStore.data.length - 1));
+          this.isNewest = (selectionIndex === 0);
+
+          // UPDATE DATE CONTROLS //
+          this.updateDateControls();
+
+          deferred.resolve();
+        } else {
+          deferred.reject();
+        }
       } else {
         deferred.reject();
       }
