@@ -52,7 +52,7 @@ define([
       // MAKE MOVABLE //
       new Moveable(this.containerNode, {handle: this.titleNode});
 
-      // IMAGERY DATE SELECT //
+      // INITIALIZE IMAGERY DATE SELECT //
       this.imageryDateSelect.set("store", new Memory({data: []}));
 
     },
@@ -69,7 +69,7 @@ define([
         // ADD IMAGE SERVICE LAYER //
         this._addImageServiceLayer();
       } else {
-        alert("Invalid widget config!");
+        alert("Invalid widget configuration");
       }
     },
 
@@ -215,7 +215,7 @@ define([
             console.info("LARGE zoom: ", evt);
             needsUpdate = true;
           } else {
-            // NOT A BIG CHANGE BUT WE'VE CROSSED THE MIN ZOOM LEVEL THRESHOLD //
+            // NOT A SIGNIFICANT ZOOM LEVEL CHANGE BUT WE'VE CROSSED THE MIN ZOOM LEVEL THRESHOLD //
             if(this.previousLevel < this.config.minZoomLevel) {
               console.info("THRESHOLD zoom: ", evt);
               needsUpdate = true;
