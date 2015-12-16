@@ -141,15 +141,20 @@ define([
         }));
         // IMAGE SERVICE LAYER LOADED //
         this.ISLayer.on("load", lang.hitch(this, function () {
+
           // DEFAULT MOSAIC RULE //
           this.defaultMosaicRule = this.ISLayer.defaultMosaicRule || lang.clone(this.ISLayer.mosaicRule);
           // SET MAP WAIT CURSOR WHILE UPDATING LAYER //
           this.ISLayer.on("update-start", lang.hitch(this.map, this.map.setMapCursor, "wait"));
           this.ISLayer.on("update-end", lang.hitch(this.map, this.map.setMapCursor, "default"));
+          // MAP EXTENT CHANGE //
+          this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
+
 
           if(this.map.webMapResponse.operationalLayers.length == 0) {
             // ADD IMAGE SERVICE LAYER //
             this.map.addLayer(this.ISLayer);
+            deferred.resolve();
 
           } else {
 
@@ -167,16 +172,15 @@ define([
               var selectedItem = layerChooser.getSelectedItems()[0];
               var selectedLayer = selectedItem.layerInfo.layerObject;
               var selectedLayerIndex = array.indexOf(this.map.layerIds, selectedLayer.id);
+
               // ADD IMAGE SERVICE LAYER //
               this.map.addLayer(this.ISLayer, selectedLayerIndex - 1);
               layerChooserDlg.hide();
+
+              deferred.resolve();
             }));
 
           }
-
-          // MAP EXTENT CHANGE //
-          this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
-          deferred.resolve();
         }));
       } else {
         deferred.reject()
