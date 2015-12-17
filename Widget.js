@@ -152,7 +152,7 @@ define([
           // MAP EXTENT CHANGE //
           this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
           // ADD IMAGE SERVICE LAYER //
-          this.map.addLayer(this.ISLayer, this.config.layerIndex || 0);
+          this.map.addLayer(this.ISLayer, this.config.layerIndex || this.map.layerIds.length);
           deferred.resolve();
         }));
       } else {
