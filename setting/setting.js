@@ -7,8 +7,9 @@ define([
   "dojo/dom-class",
   "put-selector/put",
   "jimu/BaseWidgetSetting",
-  'dijit/_WidgetsInTemplateMixin',
+  "dijit/_WidgetsInTemplateMixin",
   "jimu/dijit/ItemSelector",
+  "jimu/dijit/LayerChooserFromMap",
   "esri/layers/ArcGISImageServiceLayer",
   "esri/layers/MosaicRule",
   "dojo/store/Memory",
@@ -18,7 +19,7 @@ define([
   "dijit/form/NumberSpinner",
   "dijit/form/Select"
 ], function (declare, lang, array, on, json, domClass, put, BaseWidgetSetting, _WidgetsInTemplateMixin,
-             ItemSelector, ArcGISImageServiceLayer, MosaicRule, Memory, ConfirmDialog) {
+             ItemSelector, LayerChooserFromMap, ArcGISImageServiceLayer, MosaicRule, Memory, ConfirmDialog) {
 
   /**
    * ISTimeSelectSetting
@@ -34,8 +35,10 @@ define([
      */
     postCreate: function () {
       this.setConfig(this.config);
-      // INITIALIZE SELECTION DIALOG //
+      // INITIALIZE ITEM SELECTION DIALOG //
       this.initializeSelectItemDialog();
+      // INITIALIZE LAYER INDEX SELECTION DIALOG //
+      this.initializeSelectLayerIndexDialog();
     },
 
     /**
@@ -130,6 +133,61 @@ define([
 
     /**
      *
+     */
+    initializeSelectLayerIndexDialog: function () {
+
+      // DISABLE SELECT LAYER INDEX BUTTON IF THERE ARE NO OTHER LAYERS IN THE MAP //
+      var operationalLayer = this.map.webMapResponse.itemInfo.itemData.operationalLayers;
+      this.selectLayerIndexBtn.set("disabled", operationalLayer.length === 0);
+
+      // SELECT LAYER INDEX BUTTON CLICK //
+      this.selectLayerIndexBtn.on("click", lang.hitch(this, function () {
+
+        // OPERATIONAL LAYERS //
+        var operationalLayer = this.map.webMapResponse.itemInfo.itemData.operationalLayers;
+        if(operationalLayer.length > 0) {
+
+          var dialogContent = put("div.layer-selector-node");
+
+          // SELECT LAYER DIALOG //
+          var layerChooserDlg = new ConfirmDialog({
+            title: this.nls.setLayerIndexDialogTitle,
+            content: dialogContent
+          });
+          domClass.add(layerChooserDlg.domNode, lang.replace("{baseClass}-dlg", this));
+          layerChooserDlg.show();
+
+          // SELECT LAYER //
+          var layerChooser = new LayerChooserFromMap({
+            multiple: false,
+            showLayerFromFeatureSet: false,
+            createMapResponse: this.map.webMapResponse
+          }, put(dialogContent, "div"));
+          layerChooser.startup();
+
+          // LAYER SELECTED //
+          on(layerChooser, "tree-click", lang.hitch(this, function (evt) {
+            var selectedItems = layerChooser.getSelectedItems();
+            if(selectedItems.length >0) {
+              var selectedLayerInfo = selectedItems[0].layerInfo;
+              var selectedLayerIndex = array.indexOf(this.map.layerIds, selectedLayerInfo.id);
+              if(selectedLayerIndex > -1) {
+                // ADD ABOVE SELECTED LAYER //
+                this.layerIndexInput.set("value", selectedLayerIndex + 1);
+              } else {
+                // IF SELECTED LAYER IS GRAPHICS/FEATURE LAYER, THEN ADD TO TOP OF OTHER LAYERS //
+                this.layerIndexInput.set("value", this.map.layerIds.length);
+              }
+              layerChooserDlg.hide();
+            }
+          }));
+        }
+      }));
+
+    },
+
+    /**
+     *
      * @private
      */
     _clearValues: function () {
@@ -145,6 +203,7 @@ define([
      */
     setConfig: function (config) {
       this.titleInput.set("value", config.title || this.label || "");
+      this.layerIndexInput.set("value", config.layerIndex || this.map.layerIds.length);
       this._itemSelected(config.selectedItem);
     },
 
@@ -155,14 +214,17 @@ define([
     getConfig: function () {
 
       // REMOVE PORTAL REFERENCE //
-      delete this.selectedItem.portal;
+      if(this.selectedItem) {
+        delete this.selectedItem.portal;
+      }
 
       return {
         title: this.titleInput.get("value"),
         selectedItem: this.selectedItem,
         dateField: this.dateFieldsSelect.get("value"),
         minZoomLevel: this.zoomLevelInput.get("value"),
-        mosaicMethod: this.mosaicMethodSelect.get("value")
+        mosaicMethod: this.mosaicMethodSelect.get("value"),
+        layerIndex: this.layerIndexInput.get("value")
       };
     }
   });

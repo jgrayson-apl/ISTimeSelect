@@ -7,6 +7,7 @@
     "aboutContent": "This widget allows for temporal filtering of an Image Service layer",
     "versionLabel": "Version",
     "zoomLevelLabel": "Minimum Zoom Level",
-    "currentItemLabel": "Current Image Service Item"
+    "currentItemLabel": "Current Image Service Item",
+    "invalidConfigMessage": "Invalid widget configuration"
   })
 });

@@ -23,4 +23,9 @@
       <option value="esriMosaicLockRaster">${nls.optionMosaicLockRaster}</option>
     </select>
   </div>
+  <div class="${baseClass}-section">
+    <span class="${baseClass}-label">${!nls.layerIndexLabel}:</span>
+    <div data-dojo-attach-point="layerIndexInput" class="#{baseClass}-layer-index-input" data-dojo-type="dijit/form/NumberTextBox" data-dojo-props="value:0,readonly:true,style:{width:'350px'}"></div>
+    <div data-dojo-attach-point="selectLayerIndexBtn" data-dojo-type="dijit/form/Button" data-dojo-props="label:'${!nls.setLayerIndexLabel}'"></div>
+  </div>
 </div>

@@ -20,6 +20,11 @@
   width : 350px;
 }
 
+.layer-selector-node {
+  width  : 600px !important;
+  height : 500px !important;
+}
+
 .item-selector-node {
   height : 400px !important;
 }
@@ -34,7 +39,6 @@
   background : #6eb5e3 !important;
   border     : none !important;
 }
-
 
 .ISTimeSelectSetting-dlg .dijitButtonDisabled .dijitButtonNode {
   background : #d3d3d3 !important;

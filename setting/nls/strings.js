@@ -8,6 +8,9 @@ define({
     "minZoomLevelLabel": "Minimum Zoom Level",
     "mosaicMethodLabel": "Filter Method",
     "optionMosaicAttribute": "Display all images sorted by selected date",
-    "optionMosaicLockRaster": "Only display images for the selected date"
+    "optionMosaicLockRaster": "Only display images for the selected date",
+    "layerIndexLabel": "Layer Index",
+    "setLayerIndexLabel": "Set Layer Index",
+    "setLayerIndexDialogTitle": "Add Image Service Layer ABOVE which map layer?"
   })
 });

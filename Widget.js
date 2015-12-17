@@ -8,8 +8,7 @@ define([
   "dojo/date/locale",
   "dojo/Deferred",
   "jimu/BaseWidget",
-  'dijit/_WidgetsInTemplateMixin',
-  "jimu/dijit/LayerChooserFromMap",
+  "dijit/_WidgetsInTemplateMixin",
   "dojo/dnd/Moveable",
   "dijit/ConfirmDialog",
   "put-selector/put",
@@ -23,7 +22,7 @@ define([
   "dijit/form/Button",
   "dijit/form/Select"
 ], function (declare, lang, array, on, query, domClass, locale, Deferred,
-             BaseWidget, _WidgetsInTemplateMixin, LayerChooserFromMap, Moveable, ConfirmDialog, put, Memory,
+             BaseWidget, _WidgetsInTemplateMixin, Moveable, ConfirmDialog, put, Memory,
              ArcGISImageServiceLayer, MosaicRule, Query, QueryTask, mathUtils) {
 
   /**
@@ -76,6 +75,22 @@ define([
     },
 
     /**
+     * VALIDATE CONFIG
+     *  - WE NEED A TITLE, AN ITEM, AND A DATE FIELD.
+     */
+    _validateConfig: function () {
+      // TITLE //
+      var hasTitle = this.config.hasOwnProperty("title") && (this.config.title != null) && (this.config.title.length > 0);
+      // SELECTED ITEM //
+      var hasSelectedItem = this.config.hasOwnProperty("selectedItem") && (this.config.selectedItem != null);
+      // DATE FIELD //
+      var hasDateField = this.config.hasOwnProperty("dateField") && (this.config.dateField != null && this.config.dateField.length > 0);
+
+      // VALIDATE //
+      return hasTitle && hasSelectedItem && hasDateField;
+    },
+
+    /**
      *  WIDGET IS OPENED
      */
     onOpen: function () {
@@ -98,7 +113,7 @@ define([
           }), console.warn);
         }
       } else {
-        alert("Invalid widget configuration");
+        alert(this.nls.invalidConfigMessage);
       }
     },
 
@@ -107,22 +122,6 @@ define([
      */
     onClose: function () {
       this.inherited(arguments);
-    },
-
-    /**
-     * VALIDATE CONFIG
-     *  - WE NEED A TITLE, AN ITEM, AND A DATE FIELD.
-     */
-    _validateConfig: function () {
-      // TITLE //
-      var hasTitle = this.config.hasOwnProperty("title") && (this.config.title != null) && (this.config.title.length > 0);
-      // SELECTED ITEM //
-      var hasSelectedItem = this.config.hasOwnProperty("selectedItem") && (this.config.selectedItem != null);
-      // DATE FIELD //
-      var hasDateField = this.config.hasOwnProperty("dateField") && (this.config.dateField != null && this.config.dateField.length > 0);
-
-      // VALIDATE //
-      return hasTitle && hasSelectedItem && hasDateField;
     },
 
     /**
@@ -145,7 +144,6 @@ define([
         }));
         // IMAGE SERVICE LAYER LOADED //
         this.ISLayer.on("load", lang.hitch(this, function () {
-
           // DEFAULT MOSAIC RULE //
           this.defaultMosaicRule = this.ISLayer.defaultMosaicRule || lang.clone(this.ISLayer.mosaicRule);
           // SET MAP WAIT CURSOR WHILE UPDATING LAYER //
@@ -153,39 +151,9 @@ define([
           this.ISLayer.on("update-end", lang.hitch(this.map, this.map.setMapCursor, "default"));
           // MAP EXTENT CHANGE //
           this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
-
-          // OPERATIONAL LAYERS //
-          var operationalLayer = this.map.webMapResponse.itemInfo.itemData.operationalLayers;
-          if(operationalLayer.length == 0) {
-            // ADD IMAGE SERVICE LAYER //
-            this.map.addLayer(this.ISLayer);
-            deferred.resolve();
-
-          } else {
-
-            var layerChooserDlg = new ConfirmDialog({title: "Add Image Service Layer ABOVE which map layer?"});
-            layerChooserDlg.show();
-
-            var layerChooser = new LayerChooserFromMap({
-              multiple: false,
-              showLayerFromFeatureSet: false,
-              createMapResponse: this.map.webMapResponse
-            }, put(layerChooserDlg.containerNode, "div.layer-chooser-node"));
-            layerChooser.startup();
-
-            on(layerChooser, "tree-click", lang.hitch(this, function (evt) {
-              var selectedItem = layerChooser.getSelectedItems()[0];
-              var selectedLayer = selectedItem.layerInfo.layerObject;
-              var selectedLayerIndex = array.indexOf(this.map.layerIds, selectedLayer.id);
-
-              // ADD IMAGE SERVICE LAYER //
-              this.map.addLayer(this.ISLayer, selectedLayerIndex - 1);
-              layerChooserDlg.hide();
-
-              deferred.resolve();
-            }));
-
-          }
+          // ADD IMAGE SERVICE LAYER //
+          this.map.addLayer(this.ISLayer, this.config.layerIndex || 0);
+          deferred.resolve();
         }));
       } else {
         deferred.reject()
@@ -434,7 +402,7 @@ define([
     _onDateChange: function (selectedDateText) {
       var deferred = new Deferred();
 
-      console.info("_onDateChange: ", selectedDateText);
+      console.info("_onDateChange: ", new Date(+selectedDateText));
 
       if(this.hasValidConfig) {
         // GET SELECTED ITEM //

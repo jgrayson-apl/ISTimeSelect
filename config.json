@@ -4,5 +4,6 @@
   "minZoomLevel": 8,
   "selectedItem": null,
   "dateField": null,
-  "mosaicMethod": "esriMosaicAttribute"
+  "mosaicMethod": "esriMosaicAttribute",
+  "layerIndex": 0
 }
