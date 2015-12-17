@@ -1,9 +1,8 @@
 {
   "label": "IS Time Select",
   "title": "IS Time Select",
-  "minZoomLevel": 8,
-  "selectedItem": null,
+  "layerInfo": null,
   "dateField": null,
-  "mosaicMethod": "esriMosaicAttribute",
-  "layerIndex": 0
+  "minZoomLevel": 8,
+  "mosaicMethod": "esriMosaicAttribute"
 }

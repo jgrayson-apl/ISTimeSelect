@@ -1,16 +1,12 @@
 define({
   root: ({
     "titleLabel": "Title",
-    "selectImageServiceLabel": "Image Service Item",
-    "selectItemLabel": "Select Item",
+    "selectImageServiceLayerLabel": "Image Service Layer",
     "dateFieldLabel": "Date Field",
     "noDateFields": "No Date fields in this service",
     "minZoomLevelLabel": "Minimum Zoom Level",
-    "mosaicMethodLabel": "Filter Method",
+    "mosaicMethodLabel": "Mosaic Method",
     "optionMosaicAttribute": "Display all images sorted by selected date",
-    "optionMosaicLockRaster": "Only display images for the selected date",
-    "layerIndexLabel": "Layer Index",
-    "setLayerIndexLabel": "Set Layer Index",
-    "setLayerIndexDialogTitle": "Add Image Service Layer ABOVE which map layer?"
+    "optionMosaicLockRaster": "Only display images for the selected date"
   })
 });

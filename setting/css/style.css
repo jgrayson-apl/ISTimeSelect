@@ -15,31 +15,10 @@
   text-align : right;
 }
 
-.ISTimeSelectSetting-title,
-.ISTimeSelectSetting-item-title {
+.ISTimeSelectSetting-title{
   width : 350px;
 }
 
-.layer-selector-node {
-  width  : 600px !important;
-  height : 500px !important;
-}
-
-.item-selector-node {
-  height : 400px !important;
-}
-
-.ISTimeSelectSetting-dlg .dijitButtonText,
-.ISTimeSelectSetting-dlg .dijitDialogTitle {
-  color : #fff !important;
-}
-
-.ISTimeSelectSetting-dlg .dijitButtonNode,
-.ISTimeSelectSetting-dlg .dijitDialogTitleBar {
-  background : #6eb5e3 !important;
-  border     : none !important;
-}
-
-.ISTimeSelectSetting-dlg .dijitButtonDisabled .dijitButtonNode {
-  background : #d3d3d3 !important;
+.ISTimeSelectSetting-layer-selector{
+  display : inline-block !important;
 }

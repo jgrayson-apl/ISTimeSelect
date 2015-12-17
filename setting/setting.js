@@ -8,18 +8,19 @@ define([
   "put-selector/put",
   "jimu/BaseWidgetSetting",
   "dijit/_WidgetsInTemplateMixin",
-  "jimu/dijit/ItemSelector",
   "jimu/dijit/LayerChooserFromMap",
+  "jimu/dijit/LayerChooserFromMapWithDropbox",
+  "jimu/LayerInfos/LayerInfos",
   "esri/layers/ArcGISImageServiceLayer",
   "esri/layers/MosaicRule",
   "dojo/store/Memory",
-  "dijit/ConfirmDialog",
   "dijit/form/Button",
   "dijit/form/TextBox",
   "dijit/form/NumberSpinner",
   "dijit/form/Select"
 ], function (declare, lang, array, on, json, domClass, put, BaseWidgetSetting, _WidgetsInTemplateMixin,
-             ItemSelector, LayerChooserFromMap, ArcGISImageServiceLayer, MosaicRule, Memory, ConfirmDialog) {
+             LayerChooserFromMap, LayerChooserFromMapWithDropbox, LayerInfos,
+             ArcGISImageServiceLayer, MosaicRule, Memory) {
 
   /**
    * ISTimeSelectSetting
@@ -34,167 +35,65 @@ define([
      *
      */
     postCreate: function () {
-      this.setConfig(this.config);
-      // INITIALIZE ITEM SELECTION DIALOG //
-      this.initializeSelectItemDialog();
-      // INITIALIZE LAYER INDEX SELECTION DIALOG //
-      this.initializeSelectLayerIndexDialog();
-    },
 
-    /**
-     *  INITIALIZE SELECTION DIALOG
-     */
-    initializeSelectItemDialog: function () {
+      // SELECT LAYER //
+      this.layerChooser = new LayerChooserFromMap({
+        multiple: false,
+        showLayerFromFeatureSet: false,
+        createMapResponse: this.map.webMapResponse
+      });
+      // LAYER TYPE FILTER //
+      this.layerChooser.filter = lang.hitch(this, function (layerInfo) {
+        return (layerInfo.layerObject && (layerInfo.layerObject.type === "ArcGISImageServiceLayer"));
+      });
+      this.layerChooser.startup();
 
-      // SELECT ITEM BUTTON CLICK //
-      this.selectItemBtn.on("click", lang.hitch(this, function () {
-
-        // SELECTED ITEM //
-        this.selectedItem = null;
-
-        // DIALOG CONTENT //
-        var dialogContent = put("div.item-selector-node");
-
-        // SELECT ITEM DIALOG //
-        var selectItemDlg = new ConfirmDialog({
-          title: this.nls.selectImageServiceLabel,
-          content: dialogContent
-        });
-        selectItemDlg.okButton.set("disabled", true);
-        selectItemDlg.on("cancel", lang.hitch(this, function () {
-          this.selectedItem = null;
-          this._clearValues();
-        }));
-        selectItemDlg.on("execute", lang.hitch(this, function () {
-          this._itemSelected(this.selectedItem);
-        }));
-        domClass.add(selectItemDlg.domNode, lang.replace("{baseClass}-dlg", this));
-        selectItemDlg.show();
-
-        // ITEM SELECTOR //
-        this.itemSelector = new ItemSelector({
-          portalUrl: this.appConfig.portalUrl,
-          itemTypes: ['Image Service']
-        }, put(dialogContent, "div"));
-        on(this.itemSelector, "item-selected, none-item-selected", lang.hitch(this, function (selectedItem) {
-          this.selectedItem = selectedItem;
-          selectItemDlg.okButton.set("disabled", (this.selectedItem == null));
-          this._clearValues();
-        }));
-        this.itemSelector.startup();
-
+      // SELECT LAYER DROPDOWN //
+      this.layerSelector = new LayerChooserFromMapWithDropbox({
+        style: {width: "350px"},
+        layerChooser: this.layerChooser
+      }, put(this.imageServiceLayerSelector, "div"));
+      this.layerSelector.startup();
+      // LAYER SELECTED //
+      on(this.layerSelector, "selection-change", lang.hitch(this, function (selectedLayerInfos) {
+        this._layerSelected(selectedLayerInfos[0]);
       }));
 
+      // SET INITIAL CONFIG //
+      this.setConfig(this.config);
     },
 
     /**
      *
+     * @param layerInfo
      * @private
      */
-    _itemSelected: function () {
+    _layerSelected: function (layerInfo) {
 
-      if(this.selectedItem) {
+      // LAYER INFO //
+      this.layerInfo = layerInfo;
 
-        // IMAGE SERVICE TITLE //
-        this.imageServiceItemTitleInput.set("value", this.selectedItem.title);
-
-        // IMAGE SERVICE DATE FIELDS //
-        var ISLayer = new ArcGISImageServiceLayer(this.selectedItem.url, {id: this.selectedItem.id});
-        ISLayer.on("load", lang.hitch(this, function () {
-          // ZOOM LEVEL //
-          this.zoomLevelInput.set("value", ISLayer.minScale || this.config.minZoomLevel);
-
-          // DATE FIELD //
-          var dateFieldStore = new Memory({
-            idProperty: "name",
-            data: array.filter(ISLayer.fields, function (field) {
-              return (field.type === "esriFieldTypeDate");
-            })
-          });
-          if(dateFieldStore.data.length > 0) {
-            this.dateFieldsSelect.set("store", dateFieldStore);
-            if(this.config.dateField) {
-              this.dateFieldsSelect.set("value", this.config.dateField);
-            }
-          } else {
-            this.config.dateField = null;
-            this.dateFieldsSelect.set("value", null);
-            this.dateFieldsSelect._setDisplay(this.nls.noDateFields);
-          }
-          ISLayer.destroy();
-          ISLayer = null;
-        }));
-
+      // DATE FIELD //
+      var dateFieldStore = new Memory({
+        idProperty: "name",
+        data: array.filter(this.layerInfo.fields, function (field) {
+          return (field.type === "esriFieldTypeDate");
+        })
+      });
+      if(dateFieldStore.data.length > 0) {
+        this.dateFieldsSelect.set("store", dateFieldStore);
+        if(this.config.dateField && dateFieldStore.get(this.config.dateField)) {
+          this.dateFieldsSelect.set("value", this.config.dateField);
+        }
       } else {
-        this._clearValues();
+        this.config.dateField = null;
+        this.dateFieldsSelect.set("value", null);
+        this.dateFieldsSelect._setDisplay(this.nls.noDateFields);
       }
 
-    },
+      // ZOOM LEVEL //
+      this.zoomLevelInput.set("value", this.layerInfo.minScale || this.config.minZoomLevel);
 
-    /**
-     *
-     */
-    initializeSelectLayerIndexDialog: function () {
-
-      // DISABLE SELECT LAYER INDEX BUTTON IF THERE ARE NO OTHER LAYERS IN THE MAP //
-      var operationalLayer = this.map.webMapResponse.itemInfo.itemData.operationalLayers;
-      this.selectLayerIndexBtn.set("disabled", operationalLayer.length === 0);
-
-      // SELECT LAYER INDEX BUTTON CLICK //
-      this.selectLayerIndexBtn.on("click", lang.hitch(this, function () {
-
-        // OPERATIONAL LAYERS //
-        var operationalLayer = this.map.webMapResponse.itemInfo.itemData.operationalLayers;
-        if(operationalLayer.length > 0) {
-
-          var dialogContent = put("div.layer-selector-node");
-
-          // SELECT LAYER DIALOG //
-          var layerChooserDlg = new ConfirmDialog({
-            title: this.nls.setLayerIndexDialogTitle,
-            content: dialogContent
-          });
-          domClass.add(layerChooserDlg.domNode, lang.replace("{baseClass}-dlg", this));
-          layerChooserDlg.show();
-
-          // SELECT LAYER //
-          var layerChooser = new LayerChooserFromMap({
-            multiple: false,
-            showLayerFromFeatureSet: false,
-            createMapResponse: this.map.webMapResponse
-          }, put(dialogContent, "div"));
-          layerChooser.startup();
-
-          // LAYER SELECTED //
-          on(layerChooser, "tree-click", lang.hitch(this, function (evt) {
-            var selectedItems = layerChooser.getSelectedItems();
-            if(selectedItems.length >0) {
-              var selectedLayerInfo = selectedItems[0].layerInfo;
-              var selectedLayerIndex = array.indexOf(this.map.layerIds, selectedLayerInfo.id);
-              if(selectedLayerIndex > -1) {
-                // ADD ABOVE SELECTED LAYER //
-                this.layerIndexInput.set("value", selectedLayerIndex + 1);
-              } else {
-                // IF SELECTED LAYER IS GRAPHICS/FEATURE LAYER, THEN ADD TO TOP OF OTHER LAYERS //
-                this.layerIndexInput.set("value", this.map.layerIds.length);
-              }
-              layerChooserDlg.hide();
-            }
-          }));
-        }
-      }));
-
-    },
-
-    /**
-     *
-     * @private
-     */
-    _clearValues: function () {
-      this.imageServiceItemTitleInput.set("value", "");
-      this.zoomLevelInput.set("value", this.config.minZoomLevel);
-      this.dateFieldsSelect.set("value", null);
-      this.dateFieldsSelect._setDisplay("");
     },
 
     /**
@@ -202,9 +101,10 @@ define([
      * @param config
      */
     setConfig: function (config) {
-      this.titleInput.set("value", config.title || this.label || "");
-      this.layerIndexInput.set("value", config.layerIndex || this.map.layerIds.length);
-      this._itemSelected(config.selectedItem);
+      this.titleInput.set("value", config.title);
+      this.dateFieldsSelect.set("value", config.dateField);
+      this.zoomLevelInput.set("value", config.minZoomLevel);
+      this.mosaicMethodSelect.set("value", config.mosaicMethod);
     },
 
     /**
@@ -212,19 +112,12 @@ define([
      * @returns {{configText: string}}
      */
     getConfig: function () {
-
-      // REMOVE PORTAL REFERENCE //
-      if(this.selectedItem) {
-        delete this.selectedItem.portal;
-      }
-
       return {
         title: this.titleInput.get("value"),
-        selectedItem: this.selectedItem,
+        layerId: this.layerInfo ? this.layerInfo.id : "",
         dateField: this.dateFieldsSelect.get("value"),
         minZoomLevel: this.zoomLevelInput.get("value"),
-        mosaicMethod: this.mosaicMethodSelect.get("value"),
-        layerIndex: this.layerIndexInput.get("value")
+        mosaicMethod: this.mosaicMethodSelect.get("value")
       };
     }
   });

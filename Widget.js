@@ -13,7 +13,6 @@ define([
   "dijit/ConfirmDialog",
   "put-selector/put",
   "dojo/store/Memory",
-  "esri/layers/ArcGISImageServiceLayer",
   "esri/layers/MosaicRule",
   "esri/tasks/query",
   "esri/tasks/QueryTask",
@@ -23,7 +22,7 @@ define([
   "dijit/form/Select"
 ], function (declare, lang, array, on, query, domClass, locale, Deferred,
              BaseWidget, _WidgetsInTemplateMixin, Moveable, ConfirmDialog, put, Memory,
-             ArcGISImageServiceLayer, MosaicRule, Query, QueryTask, mathUtils) {
+             MosaicRule, Query, QueryTask, mathUtils) {
 
   /**
    * ISTimeSelect
@@ -68,7 +67,7 @@ define([
         extent: this.map.extent,
         level: this.map.getLevel()
       };
-      this.previousLevel = this.previousInfo.level;
+      this.previousExtentChangeLevel = this.previousInfo.level;
 
       // VALIDATE CONFIG //
       this.hasValidConfig = this._validateConfig();
@@ -81,13 +80,13 @@ define([
     _validateConfig: function () {
       // TITLE //
       var hasTitle = this.config.hasOwnProperty("title") && (this.config.title != null) && (this.config.title.length > 0);
-      // SELECTED ITEM //
-      var hasSelectedItem = this.config.hasOwnProperty("selectedItem") && (this.config.selectedItem != null);
+      // LAYER ID //
+      var hasLayerId = this.config.hasOwnProperty("layerId") && (this.config.layerId != null);
       // DATE FIELD //
       var hasDateField = this.config.hasOwnProperty("dateField") && (this.config.dateField != null && this.config.dateField.length > 0);
 
       // VALIDATE //
-      return hasTitle && hasSelectedItem && hasDateField;
+      return hasTitle && hasLayerId && hasDateField;
     },
 
     /**
@@ -103,7 +102,7 @@ define([
       if(this.hasValidConfig) {
         // HAS THE LAYER BEEN CREATED YET //
         if(this.ISLayer == null) {
-          // ADD IMAGE SERVICE LAYER //
+          // ADD THE IMAGE SERVICE LAYER //
           this._addImageServiceLayer().then(lang.hitch(this, function () {
             // INITIALLY GET DATES IF ENABLED //
             if(this.enabled) {
@@ -133,17 +132,11 @@ define([
 
       // VALID CONFIG //
       if(this.hasValidConfig) {
+        console.info("LAYER ID: ", this.config.layerId);
 
         // IMAGE SERVICE LAYER //
-        this.ISLayer = new ArcGISImageServiceLayer(this.config.selectedItem.url);
-        // ERROR LOADING LAYER //
-        this.ISLayer.on("error", lang.hitch(this, function (error) {
-          console.warn("ERROR LOADING LAYER: ", error, this.config);
-          this.hasValidConfig = false;
-          deferred.reject();
-        }));
-        // IMAGE SERVICE LAYER LOADED //
-        this.ISLayer.on("load", lang.hitch(this, function () {
+        this.ISLayer = this.map.getLayer(this.config.layerId);
+        if(this.ISLayer) {
           // DEFAULT MOSAIC RULE //
           this.defaultMosaicRule = this.ISLayer.defaultMosaicRule || lang.clone(this.ISLayer.mosaicRule);
           // SET MAP WAIT CURSOR WHILE UPDATING LAYER //
@@ -151,11 +144,13 @@ define([
           this.ISLayer.on("update-end", lang.hitch(this.map, this.map.setMapCursor, "default"));
           // MAP EXTENT CHANGE //
           this.map.on("extent-change", lang.hitch(this, this._mapExtentChange));
-          // ADD IMAGE SERVICE LAYER //
-          this.map.addLayer(this.ISLayer, this.config.layerIndex || this.map.layerIds.length);
           deferred.resolve();
-        }));
+        } else {
+          console.warn("Can't find configured layer in this map: ", this.config);
+          deferred.reject()
+        }
       } else {
+        console.warn("Invalid configuration: ", this.config);
         deferred.reject()
       }
 
@@ -226,7 +221,7 @@ define([
             needsUpdate = true;
           } else {
             // NOT A SIGNIFICANT ZOOM LEVEL CHANGE BUT WE'VE CROSSED THE MIN ZOOM LEVEL THRESHOLD //
-            if(this.previousLevel < this.config.minZoomLevel) {
+            if(this.previousExtentChangeLevel < this.config.minZoomLevel) {
               console.info("THRESHOLD zoom: ", evt);
               needsUpdate = true;
             }
@@ -249,8 +244,8 @@ define([
         this.updateDateControls();
       }
 
-      // PREVIOUS LEVEL //
-      this.previousLevel = evt.lod.level;
+      // PREVIOUS EXTENT CHANGE LEVEL //
+      this.previousExtentChangeLevel = evt.lod.level;
     },
 
     /**
@@ -480,7 +475,7 @@ define([
       }
 
       return deferred.promise;
-    },
+    }//,
 
     /**
      * USER CLICKS ABOUT BUTTON
@@ -488,36 +483,36 @@ define([
      *
      * @private
      */
-    _onAboutClick: function () {
+    /*_onAboutClick: function () {
 
-      // ABOUT DIALOG CONTENT //
-      var aboutContentNode = put("div.about-content");
-      put(aboutContentNode, "div span", {innerHTML: lang.replace("{nls.aboutContent}. {nls.versionLabel}: {version}", this)});
-      put(aboutContentNode, "hr +div span", {innerHTML: lang.replace("{nls.zoomLevelLabel}: {config.minZoomLevel}", this)});
-      var currentNode = put(aboutContentNode, "hr +div");
-      put(currentNode, "span", {innerHTML: lang.replace("{nls.currentItemLabel}: ", this)});
+     // ABOUT DIALOG CONTENT //
+     var aboutContentNode = put("div.about-content");
+     put(aboutContentNode, "div span", {innerHTML: lang.replace("{nls.aboutContent}. {nls.versionLabel}: {version}", this)});
+     put(aboutContentNode, "hr +div span", {innerHTML: lang.replace("{nls.zoomLevelLabel}: {config.minZoomLevel}", this)});
+     var currentNode = put(aboutContentNode, "hr +div");
+     put(currentNode, "span", {innerHTML: lang.replace("{nls.currentItemLabel}: ", this)});
 
-      // ITEM DETAILS //
-      if(this.config.selectedItem) {
-        put(currentNode, "a", {
-          innerHTML: this.config.selectedItem.title,
-          href: this.config.selectedItem.detailsPageUrl,
-          target: "_blank"
-        });
-        var itemNode = put(currentNode, "div div.item-node");
-        put(itemNode, "img.item-thumb", {src: this.config.selectedItem.thumbnailUrl});
-        put(itemNode, "div.item-desc", {innerHTML: this.config.selectedItem.description});
-      }
+     // ITEM DETAILS //
+     if(this.config.selectedItem) {
+     put(currentNode, "a", {
+     innerHTML: this.config.selectedItem.title,
+     href: this.config.selectedItem.detailsPageUrl,
+     target: "_blank"
+     });
+     var itemNode = put(currentNode, "div div.item-node");
+     put(itemNode, "img.item-thumb", {src: this.config.selectedItem.thumbnailUrl});
+     put(itemNode, "div.item-desc", {innerHTML: this.config.selectedItem.description});
+     }
 
-      // ABOUT DIALOG //
-      var aboutDialog = new ConfirmDialog({
-        title: this.nls.aboutLabel,
-        content: aboutContentNode
-      });
-      domClass.add(aboutDialog.domNode, lang.replace("{baseClass}-aboutDlg", this));
-      aboutDialog.show();
+     // ABOUT DIALOG //
+     var aboutDialog = new ConfirmDialog({
+     title: this.nls.aboutLabel,
+     content: aboutContentNode
+     });
+     domClass.add(aboutDialog.domNode, lang.replace("{baseClass}-aboutDlg", this));
+     aboutDialog.show();
 
-    }
+     }*/
 
   });
 });
