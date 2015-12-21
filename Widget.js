@@ -56,26 +56,8 @@ define([
     },
 
     /**
-     *
-     */
-    startup: function () {
-      this.inherited(arguments);
-
-      // INITIAL INFO //
-      this.previousInfo = {
-        hasImagery: false,
-        extent: this.map.extent,
-        level: this.map.getLevel()
-      };
-      this.previousExtentChangeLevel = this.previousInfo.level;
-
-      // VALIDATE CONFIG //
-      this.hasValidConfig = this._validateConfig();
-    },
-
-    /**
      * VALIDATE CONFIG
-     *  - WE NEED A TITLE, AN ITEM, AND A DATE FIELD.
+     *  - WE NEED A TITLE, AN LAYER ID, AND A DATE FIELD.
      */
     _validateConfig: function () {
       // TITLE //
@@ -94,6 +76,19 @@ define([
      */
     onOpen: function () {
       this.inherited(arguments);
+
+      if(!this.previousInfo) {
+        // INITIAL INFO //
+        this.previousInfo = {
+          hasImagery: false,
+          extent: this.map.extent,
+          level: this.map.getLevel()
+        };
+        this.previousExtentChangeLevel = this.previousInfo.level;
+
+        // VALIDATE CONFIG //
+        this.hasValidConfig = this._validateConfig();
+      }
 
       // UPDATE DATE CONTROLS //
       this.updateDateControls();
