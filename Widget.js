@@ -81,7 +81,7 @@ define([
       // TITLE //
       var hasTitle = this.config.hasOwnProperty("title") && (this.config.title != null) && (this.config.title.length > 0);
       // LAYER ID //
-      var hasLayerId = this.config.hasOwnProperty("layerId") && (this.config.layerId != null);
+      var hasLayerId = this.config.hasOwnProperty("layerId") && (this.config.layerId != null) && (this.config.layerId.length > 0);
       // DATE FIELD //
       var hasDateField = this.config.hasOwnProperty("dateField") && (this.config.dateField != null && this.config.dateField.length > 0);
 
@@ -112,6 +112,7 @@ define([
           }), console.warn);
         }
       } else {
+        console.warn(this.nls.invalidConfigMessage, this.config);
         alert(this.nls.invalidConfigMessage);
       }
     },
@@ -397,7 +398,7 @@ define([
     _onDateChange: function (selectedDateText) {
       var deferred = new Deferred();
 
-      console.info("_onDateChange: ", new Date(+selectedDateText));
+      //console.info("_onDateChange: ", new Date(+selectedDateText));
 
       if(this.hasValidConfig) {
         // GET SELECTED ITEM //
