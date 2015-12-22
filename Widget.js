@@ -98,14 +98,9 @@ define([
         // HAS THE LAYER BEEN CREATED YET //
         if(this.ISLayer == null) {
           // ADD THE IMAGE SERVICE LAYER //
-          this._addImageServiceLayer().then(lang.hitch(this, function () {
-            // UPDATE DATE CONTROLS //
-            this.updateDateControls();
-            // INITIALLY GET DATES IF ENABLED //
-            if(this.enabled) {
-              // GET IMAGERY DATES //
-              this.getImageryDates();
-            }
+          this._configureImageServiceLayer().then(lang.hitch(this, function () {
+            // GET IMAGERY DATES //
+            this.getImageryDates();
           }), console.warn);
         }
       } else {
@@ -125,7 +120,7 @@ define([
      *
      * @private
      */
-    _addImageServiceLayer: function () {
+    _configureImageServiceLayer: function () {
       var deferred = new Deferred();
 
       // VALID CONFIG //
