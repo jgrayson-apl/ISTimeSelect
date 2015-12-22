@@ -99,6 +99,8 @@ define([
         if(this.ISLayer == null) {
           // ADD THE IMAGE SERVICE LAYER //
           this._addImageServiceLayer().then(lang.hitch(this, function () {
+            // UPDATE DATE CONTROLS //
+            this.updateDateControls();
             // INITIALLY GET DATES IF ENABLED //
             if(this.enabled) {
               // GET IMAGERY DATES //
